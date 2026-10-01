@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Style discovery powered by deep image embeddings.">
+  <title>StyleSearch | Visual product discovery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="StyleSearch home"><span class="brand-mark">S</span><span>StyleSearch</span></a>
+    <span class="status"><span class="status-dot"></span>Embedding search online</span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">Visual intelligence / 01</p>
+      <h1>Find the look<br><em>you mean.</em></h1>
+      <p class="intro">Upload a product image and discover visually similar pieces from the catalog. ResNet embeddings handle the search; ESRGAN can sharpen the details.</p>
+    </section>
+
+    <section class="workspace" aria-label="Image similarity search">
+      <div class="upload-panel">
+        <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="Choose an image">
+          <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+          <div class="upload-icon">+</div>
+          <h2>Drop an image here</h2>
+          <p>or choose a JPG, PNG, or WebP</p>
+          <button id="choose-button" class="button button-dark" type="button">Choose image</button>
+        </div>
+        <div class="controls">
+          <label class="toggle"><input id="query-upscale" type="checkbox"><span class="toggle-track"></span><span>Enhance query before searching</span></label>
+          <button id="search-button" class="button button-accent" type="button" disabled>Search catalog <span aria-hidden="true">↗</span></button>
+        </div>
+        <p id="file-name" class="file-name" aria-live="polite">No image selected</p>
+      </div>
+
+      <div class="preview-panel">
+        <div class="section-label"><span>Query preview</span><span id="query-state">Waiting</span></div>
+        <div id="query-preview" class="query-preview empty"><span>Your image will appear here</span></div>
+      </div>
+    </section>
+
+    <section id="results-section" class="results-section" hidden>
+      <div class="results-heading"><div><p class="eyebrow">Catalog results / 02</p><h2>Closest visual matches</h2></div><p id="result-count" class="result-count"></p></div>
+      <div id="results-grid" class="results-grid"></div>
+    </section>
+
+    <div id="error-message" class="error-message" role="alert" hidden></div>
+  </main>
+  <footer><span>StyleSearch</span><span>Built for visual discovery</span></footer>
+  <script src="/static/main.js" defer></script>
+</body>
+</html>
