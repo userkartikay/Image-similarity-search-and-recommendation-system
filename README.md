@@ -57,6 +57,8 @@ Render instances are CPU-based by default. The first search downloads the ResNet
 
 For Render's free instance, keep `ENABLE_UPSCALING=false` as configured in `render.yaml`. Search uses a memory-mapped catalog and does not load the ESRGAN model. Set `ENABLE_UPSCALING=true` only on a machine with more memory and CPU capacity.
 
+To enable enhancement locally, install the optional dependencies with `pip install -r requirements-enhancement.txt` and set `ENABLE_UPSCALING=true` before starting the server.
+
 ## API surface
 
 - `GET /health` reports whether the catalog and ESRGAN assets are present.
