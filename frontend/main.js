@@ -13,8 +13,27 @@ const errorMessage = document.querySelector('#error-message');
 let selectedFile = null;
 let enhancementEnabled = false;
 
+async function parseApiResponse(response) {
+  const body = await response.text();
+  let data = null;
+  if (body.trim()) {
+    try {
+      data = JSON.parse(body);
+    } catch {
+      throw new Error(`Server returned ${response.status} ${response.statusText}.`);
+    }
+  }
+  if (!response.ok) {
+    throw new Error(data?.detail || `Request failed with status ${response.status}.`);
+  }
+  if (!data) {
+    throw new Error('The server returned an empty response. It may be restarting or out of memory.');
+  }
+  return data;
+}
+
 fetch('/health')
-  .then((response) => response.json())
+  .then(parseApiResponse)
   .then((status) => { enhancementEnabled = status.upscaler_ready; })
   .catch(() => {});
 
@@ -73,8 +92,7 @@ searchButton.addEventListener('click', async () => {
   clearError();
   try {
     const response = await fetch(`/api/search?upscale=${queryUpscale.checked}`, { method: 'POST', body: formData });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || 'Search failed.');
+    const data = await parseApiResponse(response);
     queryPreview.innerHTML = `<img src="${data.query_preview}" alt="Processed query image">`;
     renderResults(data.matches);
     queryState.textContent = 'Complete';
