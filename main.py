@@ -69,6 +69,18 @@ def image_as_data_url(image: Image.Image) -> str:
     return f"data:image/jpeg;base64,{encoded}"
 
 
+def rank_similarities(query_embedding: np.ndarray, embeddings: np.ndarray) -> np.ndarray:
+    query_vector = query_embedding.reshape(-1).astype(np.float32)
+    query_norm = np.linalg.norm(query_vector)
+    similarities = np.empty(len(embeddings), dtype=np.float32)
+    for start in range(0, len(embeddings), 2048):
+        end = min(start + 2048, len(embeddings))
+        chunk = np.asarray(embeddings[start:end], dtype=np.float32)
+        chunk_norms = np.linalg.norm(chunk, axis=1)
+        similarities[start:end] = (chunk @ query_vector) / (chunk_norms * query_norm + 1e-8)
+    return similarities
+
+
 @lru_cache(maxsize=1)
 def upscaler():
     if not ENABLE_UPSCALING:
@@ -159,13 +171,12 @@ async def search(image: UploadFile = File(...), upscale: bool = Query(False)):
         processed_image = upscale_image(query_image) if upscale else query_image
         embeddings, _ = load_catalog()
         model, transform = feature_extractor()
-        from sklearn.metrics.pairwise import cosine_similarity
         import torch
 
         with torch.no_grad():
             tensor = transform(processed_image).unsqueeze(0)
             query_embedding = model(tensor).squeeze().reshape(1, -1).numpy()
-        similarities = cosine_similarity(query_embedding, embeddings)[0]
+        similarities = rank_similarities(query_embedding, embeddings)
         indices = np.argsort(similarities)[::-1][:5]
         matches = []
         for index in indices:
