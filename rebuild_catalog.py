@@ -1,4 +1,5 @@
 import argparse
+import os
 from pathlib import Path
 
 import numpy as np
@@ -25,10 +26,13 @@ def build_catalog(image_dir: Path, output_dir: Path, batch_size: int, device_nam
     if device.type == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("CUDA was requested, but this PyTorch installation has no CUDA support.")
 
+    torch.set_num_threads(max(1, min(2, os.cpu_count() or 1)))
+    torch.set_num_interop_threads(1)
     weights = models.ResNet18_Weights.DEFAULT
     transform = weights.transforms()
     model = models.resnet18(weights=weights)
-    model = torch.nn.Sequential(*list(model.children())[:-1]).to(device).eval()
+    model.fc = torch.nn.Identity()
+    model = model.to(device).eval()
 
     embeddings = []
     valid_paths = []
@@ -59,7 +63,7 @@ def build_catalog(image_dir: Path, output_dir: Path, batch_size: int, device_nam
         raise RuntimeError("No readable images were available for embedding.")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    np.save(output_dir / "embeddings.npy", np.concatenate(embeddings).astype(np.float32))
+    np.save(output_dir / "embeddings.npy", np.concatenate(embeddings).astype(np.float16))
     relative_paths = [path.relative_to(Path.cwd()).as_posix() for path in valid_paths]
     np.save(output_dir / "file_paths.npy", np.array(relative_paths))
     print(f"Saved {len(relative_paths)} aligned image embeddings to {output_dir}")

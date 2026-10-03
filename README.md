@@ -15,7 +15,7 @@ uvicorn main:app --reload
 
 Open `http://127.0.0.1:8000` in a browser.
 
-The catalog files are stored at `catalog/embeddings.npy` and `catalog/file_paths.npy`. Product thumbnails are stored in Cloudinary; the original image dataset is needed only locally when rebuilding the catalog.
+The catalog files are stored at `catalog/embeddings.npy` and `catalog/file_paths.npy`. Embeddings are normalized and stored as `float16` to reduce Render memory usage; they are converted in small chunks during search. Product thumbnails are stored in Cloudinary; the original image dataset is needed only locally when rebuilding the catalog.
 
 ## Push to GitHub
 

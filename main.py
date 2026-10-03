@@ -43,12 +43,13 @@ def feature_extractor():
     import torch
     from torchvision import models
 
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
     weights = models.ResNet18_Weights.DEFAULT
     model = models.resnet18(weights=weights)
-    model = torch.nn.Sequential(*list(model.children())[:-1])
+    model.fc = torch.nn.Identity()
     model.eval()
     model.to("cpu")
-    torch.set_num_threads(max(1, min(2, os.cpu_count() or 1)))
     return model, weights.transforms()
 
 
