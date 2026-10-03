@@ -10,7 +10,7 @@ from torchvision import models
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 
-def build_catalog(image_dir: Path, output_dir: Path, batch_size: int) -> None:
+def build_catalog(image_dir: Path, output_dir: Path, batch_size: int, device_name: str) -> None:
     image_dir = image_dir.resolve()
     output_dir = output_dir.resolve()
     image_paths = sorted(
@@ -19,11 +19,16 @@ def build_catalog(image_dir: Path, output_dir: Path, batch_size: int) -> None:
     if not image_paths:
         raise FileNotFoundError(f"No supported images found in {image_dir}")
 
-    weights = models.ResNet50_Weights.DEFAULT
+    if device_name == "auto":
+        device_name = "cuda" if torch.cuda.is_available() else "cpu"
+    device = torch.device(device_name)
+    if device.type == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("CUDA was requested, but this PyTorch installation has no CUDA support.")
+
+    weights = models.ResNet18_Weights.DEFAULT
     transform = weights.transforms()
-    model = models.resnet50(weights=weights)
-    model = torch.nn.Sequential(*list(model.children())[:-1])
-    model.eval()
+    model = models.resnet18(weights=weights)
+    model = torch.nn.Sequential(*list(model.children())[:-1]).to(device).eval()
 
     embeddings = []
     valid_paths = []
@@ -41,9 +46,11 @@ def build_catalog(image_dir: Path, output_dir: Path, batch_size: int) -> None:
         if not batch_images:
             continue
 
-        batch_tensor = torch.stack(batch_images)
-        with torch.no_grad():
-            batch_embeddings = model(batch_tensor).flatten(1).numpy()
+        batch_tensor = torch.stack(batch_images).to(device)
+        with torch.inference_mode():
+            batch_embeddings = model(batch_tensor).flatten(1)
+            batch_embeddings = torch.nn.functional.normalize(batch_embeddings, dim=1)
+            batch_embeddings = batch_embeddings.cpu().numpy()
         embeddings.append(batch_embeddings)
         valid_paths.extend(batch_paths)
         print(f"Processed {min(start + batch_size, len(image_paths))}/{len(image_paths)} images")
@@ -63,8 +70,14 @@ def main() -> None:
     parser.add_argument("--image-dir", type=Path, default=Path("myntradataset/images"))
     parser.add_argument("--output-dir", type=Path, default=Path("Real-ESRGAN"))
     parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument(
+        "--device",
+        choices=("auto", "cuda", "cpu"),
+        default="auto",
+        help="Embedding device. 'auto' uses CUDA when available.",
+    )
     args = parser.parse_args()
-    build_catalog(args.image_dir, args.output_dir, args.batch_size)
+    build_catalog(args.image_dir, args.output_dir, args.batch_size, args.device)
 
 
 if __name__ == "__main__":

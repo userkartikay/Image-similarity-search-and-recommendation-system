@@ -20,6 +20,7 @@ FILE_PATHS_PATH = ASSET_DIR / "file_paths.npy"
 UPSCALE_WEIGHTS = ASSET_DIR / "weights" / "RealESRGAN_x4plus.pth"
 WEB_DIR = ROOT_DIR / "frontend"
 ENABLE_UPSCALING = os.getenv("ENABLE_UPSCALING", "true").lower() == "true"
+os.environ.setdefault("TORCH_HOME", str(ROOT_DIR / ".torch-cache"))
 
 app = FastAPI(title="StyleSearch API", version="1.0.0")
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
@@ -44,10 +45,12 @@ def feature_extractor():
     import torch
     from torchvision import models
 
-    weights = models.ResNet50_Weights.DEFAULT
-    model = models.resnet50(weights=weights)
+    weights = models.ResNet18_Weights.DEFAULT
+    model = models.resnet18(weights=weights)
     model = torch.nn.Sequential(*list(model.children())[:-1])
     model.eval()
+    model.to("cpu")
+    torch.set_num_threads(max(1, min(2, os.cpu_count() or 1)))
     return model, weights.transforms()
 
 
@@ -71,13 +74,12 @@ def image_as_data_url(image: Image.Image) -> str:
 
 def rank_similarities(query_embedding: np.ndarray, embeddings: np.ndarray) -> np.ndarray:
     query_vector = query_embedding.reshape(-1).astype(np.float32)
-    query_norm = np.linalg.norm(query_vector)
+    query_vector /= np.linalg.norm(query_vector) + 1e-8
     similarities = np.empty(len(embeddings), dtype=np.float32)
     for start in range(0, len(embeddings), 2048):
         end = min(start + 2048, len(embeddings))
         chunk = np.asarray(embeddings[start:end], dtype=np.float32)
-        chunk_norms = np.linalg.norm(chunk, axis=1)
-        similarities[start:end] = (chunk @ query_vector) / (chunk_norms * query_norm + 1e-8)
+        similarities[start:end] = chunk @ query_vector
     return similarities
 
 
@@ -173,7 +175,7 @@ async def search(image: UploadFile = File(...), upscale: bool = Query(False)):
         model, transform = feature_extractor()
         import torch
 
-        with torch.no_grad():
+        with torch.inference_mode():
             tensor = transform(processed_image).unsqueeze(0)
             query_embedding = model(tensor).squeeze().reshape(1, -1).numpy()
         similarities = rank_similarities(query_embedding, embeddings)
@@ -201,7 +203,11 @@ def product_image(index: int, upscale: bool = Query(False)):
     image = get_image(index, upscale)
     buffer = io.BytesIO()
     image.save(buffer, format="JPEG", quality=88)
-    return Response(content=buffer.getvalue(), media_type="image/jpeg")
+    return Response(
+        content=buffer.getvalue(),
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 @app.exception_handler(FileNotFoundError)

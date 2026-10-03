@@ -40,10 +40,19 @@ The `-f` flag is required because the vendored Real-ESRGAN project ignores its `
 The current catalog paths match the source dataset order and can be used as-is. Rebuild the paired files only if you replace the dataset or regenerate embeddings with a different model:
 
 ```powershell
-python rebuild_catalog.py --batch-size 32
+python rebuild_catalog.py --batch-size 32 --device auto
 ```
 
-This uses the same ResNet50 weights and preprocessing as the API and writes aligned files to `Real-ESRGAN/`. On CPU, processing the complete catalog can take a while.
+This uses the same ResNet18 weights and preprocessing as the API and writes normalized, aligned files to `Real-ESRGAN/`. With a CUDA-enabled PyTorch installation, `--device auto` uses the GPU; otherwise it falls back to CPU. The catalog must be rebuilt after changing the encoder.
+
+For the local RTX 2050 environment, install the CUDA build of PyTorch before rebuilding:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install --upgrade --force-reinstall torch torchvision --index-url https://download.pytorch.org/whl/cu128
+.\.venv\Scripts\python.exe rebuild_catalog.py --batch-size 64 --device cuda
+```
+
+The Render deployment intentionally keeps the normal CPU-compatible requirements; Render's free instances do not provide a GPU.
 
 ## Deploy on Render
 
@@ -53,7 +62,7 @@ This repository includes `render.yaml`. Create a new Blueprint from the reposito
 - Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
 - Health check path: `/health`
 
-Render instances are CPU-based by default. The first search downloads the ResNet50 weights if they are not already cached, and ESRGAN enhancement is significantly slower than normal search. For a public deployment, use a persistent asset store or a build step to provide the catalog arrays and ESRGAN checkpoint.
+Render instances are CPU-based by default. The Render build command downloads the ResNet18 weights into `.torch-cache`, so the first search does not wait for a model download. ESRGAN enhancement is significantly slower than normal search. For a public deployment, use a persistent asset store or a build step to provide the catalog arrays and ESRGAN checkpoint.
 
 For Render's free instance, keep `ENABLE_UPSCALING=false` as configured in `render.yaml`. Search uses a memory-mapped catalog and does not load the ESRGAN model. Set `ENABLE_UPSCALING=true` only on a machine with more memory and CPU capacity.
 
