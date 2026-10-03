@@ -120,15 +120,19 @@ function renderResults(matches) {
       return;
     }
     enhanceButton.addEventListener('click', (event) => {
-      event.currentTarget.textContent = 'Enhancing...';
+      const button = event.currentTarget;
+      button.textContent = 'Enhancing...';
+      button.disabled = true;
       const resultImage = card.querySelector('.result-image');
-      resultImage.src = `${match.image_url}?upscale=true`;
-      resultImage.addEventListener('load', () => { event.currentTarget.textContent = 'Enhanced'; }, { once: true });
+      resultImage.addEventListener('load', () => {
+        button.textContent = 'Enhanced';
+      }, { once: true });
       resultImage.addEventListener('error', () => {
-        event.currentTarget.textContent = 'Enhance failed';
-        event.currentTarget.disabled = false;
+        button.textContent = 'Enhance failed';
+        button.disabled = false;
         resultImage.src = match.image_url;
       }, { once: true });
+      resultImage.src = `${match.image_url}?upscale=true`;
     });
     resultsGrid.appendChild(card);
   });
