@@ -54,6 +54,29 @@ For the local RTX 2050 environment, install the CUDA build of PyTorch before reb
 
 The Render deployment intentionally keeps the normal CPU-compatible requirements; Render's free instances do not provide a GPU.
 
+### Optional Cloudinary thumbnails
+
+For a smaller Render deployment, prepare 512px thumbnails locally and upload them to Cloudinary:
+
+```powershell
+pip install -r requirements-storage.txt
+python prepare_cloudinary.py
+$env:CLOUDINARY_CLOUD_NAME = "your-cloud-name"
+$env:CLOUDINARY_API_KEY = "your-api-key"
+$env:CLOUDINARY_API_SECRET = "your-api-secret"
+python prepare_cloudinary.py --upload
+```
+
+For an interrupted upload, reuse existing thumbnails with parallel workers:
+
+```powershell
+python prepare_cloudinary.py --thumbnail-dir .cloudinary-thumbnails --upload-existing --workers 8
+```
+
+Set `IMAGE_CDN_BASE_URL` on Render to the Cloudinary delivery prefix, for example:
+`https://res.cloudinary.com/your-cloud-name/image/upload/f_auto,q_auto,w_512/stylesearch`.
+The API then serves thumbnails directly from Cloudinary while enhancement continues through the local API endpoint. Keep the original dataset locally for catalog regeneration; do not commit `.cloudinary-thumbnails/`.
+
 ## Deploy on Render
 
 This repository includes `render.yaml`. Create a new Blueprint from the repository, or configure a Python web service with:

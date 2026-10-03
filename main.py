@@ -20,6 +20,7 @@ FILE_PATHS_PATH = ASSET_DIR / "file_paths.npy"
 UPSCALE_WEIGHTS = ASSET_DIR / "weights" / "RealESRGAN_x4plus.pth"
 WEB_DIR = ROOT_DIR / "frontend"
 ENABLE_UPSCALING = os.getenv("ENABLE_UPSCALING", "true").lower() == "true"
+IMAGE_CDN_BASE_URL = os.getenv("IMAGE_CDN_BASE_URL", "").rstrip("/")
 os.environ.setdefault("TORCH_HOME", str(ROOT_DIR / ".torch-cache"))
 
 app = FastAPI(title="StyleSearch API", version="1.0.0")
@@ -63,6 +64,13 @@ def resolve_image_path(raw_path) -> Path:
         return candidate.resolve()
     dataset_candidate = ROOT_DIR / "myntradataset" / Path(normalized)
     return dataset_candidate.resolve()
+
+
+def image_url(index: int, raw_path) -> str:
+    if not IMAGE_CDN_BASE_URL:
+        return f"/api/images/{index}"
+    relative_path = Path(str(raw_path).replace("\\", "/"))
+    return f"{IMAGE_CDN_BASE_URL}/{relative_path.stem}.jpg"
 
 
 def image_as_data_url(image: Image.Image) -> str:
@@ -186,8 +194,9 @@ async def search(image: UploadFile = File(...), upscale: bool = Query(False)):
             matches.append({
                 "index": int(index),
                 "score": round(float(similarities[index]), 4),
-                "available": path.is_file(),
-                "image_url": f"/api/images/{int(index)}",
+                "available": bool(IMAGE_CDN_BASE_URL) or path.is_file(),
+                "image_url": image_url(int(index), load_catalog()[1][index]),
+                "enhance_url": f"/api/images/{int(index)}?upscale=true",
             })
         return {"query_preview": image_as_data_url(processed_image), "matches": matches}
     except HTTPException:

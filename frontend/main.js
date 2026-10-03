@@ -132,7 +132,7 @@ function renderResults(matches) {
         button.disabled = false;
         resultImage.src = match.image_url;
       }, { once: true });
-      resultImage.src = `${match.image_url}?upscale=true`;
+      resultImage.src = match.enhance_url || `${match.image_url}?upscale=true`;
     });
     resultsGrid.appendChild(card);
   });

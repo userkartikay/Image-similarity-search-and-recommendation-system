@@ -1,5 +1,8 @@
 __pycache__/
 .venv/
 .torch-cache/
+.cloudinary-thumbnails/
+.cloudinary-*-test/
+.cloudinary-*-output/
 *.py[cod]
 .env
