@@ -10,5 +10,3 @@ services:
         value: 3.11.9
       - key: TORCH_HOME
         value: .torch-cache
-      - key: ENABLE_UPSCALING
-        value: "false"

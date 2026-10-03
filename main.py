@@ -1,7 +1,6 @@
 import base64
 import io
 import os
-import sys
 from functools import lru_cache
 from pathlib import Path
 
@@ -14,12 +13,10 @@ from PIL import Image
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 ROOT_DIR = Path(__file__).resolve().parent
-ASSET_DIR = ROOT_DIR / "Real-ESRGAN"
-EMBEDDINGS_PATH = ASSET_DIR / "embeddings.npy"
-FILE_PATHS_PATH = ASSET_DIR / "file_paths.npy"
-UPSCALE_WEIGHTS = ASSET_DIR / "weights" / "RealESRGAN_x4plus.pth"
+CATALOG_DIR = ROOT_DIR / "catalog"
+EMBEDDINGS_PATH = CATALOG_DIR / "embeddings.npy"
+FILE_PATHS_PATH = CATALOG_DIR / "file_paths.npy"
 WEB_DIR = ROOT_DIR / "frontend"
-ENABLE_UPSCALING = os.getenv("ENABLE_UPSCALING", "true").lower() == "true"
 IMAGE_CDN_BASE_URL = os.getenv("IMAGE_CDN_BASE_URL", "").rstrip("/")
 os.environ.setdefault("TORCH_HOME", str(ROOT_DIR / ".torch-cache"))
 
@@ -31,8 +28,8 @@ app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 def load_catalog():
     if not EMBEDDINGS_PATH.exists() or not FILE_PATHS_PATH.exists():
         raise FileNotFoundError(
-            "Catalog files are missing. Add Real-ESRGAN/embeddings.npy and "
-            "Real-ESRGAN/file_paths.npy before searching."
+            "Catalog files are missing. Add catalog/embeddings.npy and "
+            "catalog/file_paths.npy before searching."
         )
     embeddings = np.load(EMBEDDINGS_PATH, mmap_mode="r")
     file_paths = np.load(FILE_PATHS_PATH, allow_pickle=True)
@@ -91,54 +88,6 @@ def rank_similarities(query_embedding: np.ndarray, embeddings: np.ndarray) -> np
     return similarities
 
 
-@lru_cache(maxsize=1)
-def upscaler():
-    if not ENABLE_UPSCALING:
-        raise RuntimeError("Image enhancement is disabled for this deployment.")
-    if not UPSCALE_WEIGHTS.exists():
-        raise FileNotFoundError(
-            "RealESRGAN_x4plus.pth is missing from Real-ESRGAN/weights."
-        )
-    sys.path.insert(0, str(ASSET_DIR))
-    import torch
-    import types
-    from torchvision.transforms import functional as torchvision_functional
-
-    if "torchvision.transforms.functional_tensor" not in sys.modules:
-        functional_tensor = types.ModuleType("torchvision.transforms.functional_tensor")
-        functional_tensor.rgb_to_grayscale = torchvision_functional.rgb_to_grayscale
-        sys.modules["torchvision.transforms.functional_tensor"] = functional_tensor
-
-    from basicsr.archs.rrdbnet_arch import RRDBNet
-    from realesrgan.utils import RealESRGANer
-
-    model = RRDBNet(
-        num_in_ch=3,
-        num_out_ch=3,
-        num_feat=64,
-        num_block=23,
-        num_grow_ch=32,
-        scale=4,
-    )
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    return RealESRGANer(
-        scale=4,
-        model_path=str(UPSCALE_WEIGHTS),
-        model=model,
-        device=device,
-    )
-
-
-def upscale_image(image: Image.Image) -> Image.Image:
-    import cv2
-
-    image = image.copy()
-    image.thumbnail((512, 512), Image.Resampling.LANCZOS)
-    source = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-    output, _ = upscaler().enhance(source, outscale=4)
-    return Image.fromarray(cv2.cvtColor(output, cv2.COLOR_BGR2RGB))
-
-
 def get_image(index: int, upscale: bool = False) -> Image.Image:
     try:
         _, file_paths = load_catalog()
@@ -149,7 +98,7 @@ def get_image(index: int, upscale: bool = False) -> Image.Image:
         raise HTTPException(status_code=404, detail="Product image is unavailable.")
     try:
         image = Image.open(image_path).convert("RGB")
-        return upscale_image(image) if upscale else image
+        return image
     except Exception as error:
         raise HTTPException(status_code=500, detail="Could not process this product image.") from error
 
@@ -165,7 +114,7 @@ def health():
     return {
         "status": "ok",
         "catalog_ready": catalog_ready,
-        "upscaler_ready": ENABLE_UPSCALING and UPSCALE_WEIGHTS.exists(),
+        "upscaler_ready": False,
     }
 
 
@@ -178,7 +127,7 @@ async def search(image: UploadFile = File(...), upscale: bool = Query(False)):
         query_image = Image.open(io.BytesIO(contents)).convert("RGB")
         if query_image.width > 1600 or query_image.height > 1600:
             query_image.thumbnail((1600, 1600))
-        processed_image = upscale_image(query_image) if upscale else query_image
+        processed_image = query_image
         embeddings, _ = load_catalog()
         model, transform = feature_extractor()
         import torch

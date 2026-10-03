@@ -1,6 +1,6 @@
 # StyleSearch
 
-StyleSearch is a visual product discovery app. It extracts a ResNet50 embedding from an uploaded image, compares it with the catalog embeddings, and returns the five closest products. Real-ESRGAN enhancement is available for the query and individual results.
+StyleSearch is a visual product discovery app. It extracts a ResNet18 embedding from an uploaded image, compares it with the catalog embeddings, and returns the five closest products. Product thumbnails are served from Cloudinary when configured.
 
 ## Run locally
 
@@ -15,7 +15,7 @@ uvicorn main:app --reload
 
 Open `http://127.0.0.1:8000` in a browser.
 
-The catalog files must be available at `Real-ESRGAN/embeddings.npy` and `Real-ESRGAN/file_paths.npy`. The optional ESRGAN checkpoint belongs at `Real-ESRGAN/weights/RealESRGAN_x4plus.pth`. Large binary assets should be stored with Git LFS or downloaded from object storage during the Render build; they should not be committed as ordinary Git files.
+The catalog files are stored at `catalog/embeddings.npy` and `catalog/file_paths.npy`. Product thumbnails are stored in Cloudinary; the original image dataset is needed only locally when rebuilding the catalog.
 
 ## Push to GitHub
 
@@ -26,14 +26,13 @@ git init
 git lfs install
 git add .gitattributes
 git add .
-git add -f Real-ESRGAN/weights/RealESRGAN_x4plus.pth
 git commit -m "Initial StyleSearch application"
 git branch -M main
 git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
 git push -u origin main
 ```
 
-The `-f` flag is required because the vendored Real-ESRGAN project ignores its `weights` directory. GitHub LFS storage and bandwidth quotas depend on your account; if the LFS quota is too small, keep the source repository on GitHub and download these three assets from object storage during the Render build instead.
+The catalog arrays use Git LFS. Keep the source image dataset and enhancement models outside the deployment repository.
 
 ## Rebuild the catalog (optional)
 
@@ -43,7 +42,7 @@ The current catalog paths match the source dataset order and can be used as-is. 
 python rebuild_catalog.py --batch-size 32 --device auto
 ```
 
-This uses the same ResNet18 weights and preprocessing as the API and writes normalized, aligned files to `Real-ESRGAN/`. With a CUDA-enabled PyTorch installation, `--device auto` uses the GPU; otherwise it falls back to CPU. The catalog must be rebuilt after changing the encoder.
+This uses the same ResNet18 weights and preprocessing as the API and writes normalized, aligned files to `catalog/`. With a CUDA-enabled PyTorch installation, `--device auto` uses the GPU; otherwise it falls back to CPU. The catalog must be rebuilt after changing the encoder.
 
 For the local RTX 2050 environment, install the CUDA build of PyTorch before rebuilding:
 
@@ -87,12 +86,10 @@ This repository includes `render.yaml`. Create a new Blueprint from the reposito
 
 Render instances are CPU-based by default. The Render build command downloads the ResNet18 weights into `.torch-cache`, so the first search does not wait for a model download. ESRGAN enhancement is significantly slower than normal search. For a public deployment, use a persistent asset store or a build step to provide the catalog arrays and ESRGAN checkpoint.
 
-For Render's free instance, keep `ENABLE_UPSCALING=false` as configured in `render.yaml`. Search uses a memory-mapped catalog and does not load the ESRGAN model. Set `ENABLE_UPSCALING=true` only on a machine with more memory and CPU capacity.
-
-To enable enhancement locally, install the optional dependencies with `pip install -r requirements-enhancement.txt` and set `ENABLE_UPSCALING=true` before starting the server.
+Image enhancement is intentionally not included in the deployment. This keeps the Render service small and avoids the ESRGAN model and dependencies.
 
 ## API surface
 
 - `GET /health` reports whether the catalog and ESRGAN assets are present.
-- `POST /api/search?upscale=false` accepts an `image` multipart upload and returns ranked matches.
-- `GET /api/images/{index}?upscale=false` serves a catalog image.
+- `POST /api/search` accepts an `image` multipart upload and returns ranked matches.
+- `GET /api/images/{index}` serves a catalog image when local source images are available.

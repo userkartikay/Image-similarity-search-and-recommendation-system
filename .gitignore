@@ -4,5 +4,7 @@ __pycache__/
 .cloudinary-thumbnails/
 .cloudinary-*-test/
 .cloudinary-*-output/
+myntradataset/
+images/
 *.py[cod]
 .env

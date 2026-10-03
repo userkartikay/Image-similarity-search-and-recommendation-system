@@ -68,7 +68,7 @@ def build_catalog(image_dir: Path, output_dir: Path, batch_size: int, device_nam
 def main() -> None:
     parser = argparse.ArgumentParser(description="Rebuild the StyleSearch image catalog.")
     parser.add_argument("--image-dir", type=Path, default=Path("myntradataset/images"))
-    parser.add_argument("--output-dir", type=Path, default=Path("Real-ESRGAN"))
+    parser.add_argument("--output-dir", type=Path, default=Path("catalog"))
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument(
         "--device",

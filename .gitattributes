@@ -1,3 +1,2 @@
-Real-ESRGAN/embeddings.npy filter=lfs diff=lfs merge=lfs -text
-Real-ESRGAN/file_paths.npy filter=lfs diff=lfs merge=lfs -text
-Real-ESRGAN/weights/RealESRGAN_x4plus.pth filter=lfs diff=lfs merge=lfs -text
+catalog/embeddings.npy filter=lfs diff=lfs merge=lfs -text
+catalog/file_paths.npy filter=lfs diff=lfs merge=lfs -text
