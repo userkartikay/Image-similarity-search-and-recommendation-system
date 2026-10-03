@@ -1,6 +1,6 @@
 # StyleSearch
 
-StyleSearch is a visual product discovery app. It extracts a ResNet18 embedding from an uploaded image, compares it with the catalog embeddings, and returns the five closest products. Product thumbnails are served from Cloudinary when configured.
+StyleSearch is a visual product discovery app. It extracts a MobileNetV3-Small embedding from an uploaded image, compares it with the catalog embeddings, and returns the five closest products. Product thumbnails are served from Cloudinary when configured.
 
 ## Run locally
 
@@ -42,7 +42,7 @@ The current catalog paths match the source dataset order and can be used as-is. 
 python rebuild_catalog.py --batch-size 32 --device auto
 ```
 
-This uses the same ResNet18 weights and preprocessing as the API and writes normalized, aligned files to `catalog/`. With a CUDA-enabled PyTorch installation, `--device auto` uses the GPU; otherwise it falls back to CPU. The catalog must be rebuilt after changing the encoder.
+This uses the same MobileNetV3-Small weights and preprocessing as the API and writes normalized, aligned files to `catalog/`. With a CUDA-enabled PyTorch installation, `--device auto` uses the GPU; otherwise it falls back to CPU. The catalog must be rebuilt after changing the encoder.
 
 For the local RTX 2050 environment, install the CUDA build of PyTorch before rebuilding:
 
@@ -84,7 +84,7 @@ This repository includes `render.yaml`. Create a new Blueprint from the reposito
 - Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
 - Health check path: `/health`
 
-Render instances are CPU-based by default. The Render build command downloads the ResNet18 weights into `.torch-cache`, so the first search does not wait for a model download. ESRGAN enhancement is significantly slower than normal search. For a public deployment, use a persistent asset store or a build step to provide the catalog arrays and ESRGAN checkpoint.
+Render instances are CPU-based by default. The Render build command downloads the MobileNetV3-Small weights into `.torch-cache`, so the first search does not wait for a model download. ESRGAN enhancement is significantly slower than normal search. For a public deployment, use a persistent asset store or a build step to provide the catalog arrays and ESRGAN checkpoint.
 
 Image enhancement is intentionally not included in the deployment. This keeps the Render service small and avoids the ESRGAN model and dependencies.
 

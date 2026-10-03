@@ -45,9 +45,9 @@ def feature_extractor():
 
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)
-    weights = models.ResNet18_Weights.DEFAULT
-    model = models.resnet18(weights=weights)
-    model.fc = torch.nn.Identity()
+    weights = models.MobileNet_V3_Small_Weights.DEFAULT
+    model = models.mobilenet_v3_small(weights=weights)
+    model.classifier = torch.nn.Identity()
     model.eval()
     model.to("cpu")
     return model, weights.transforms()

@@ -28,10 +28,10 @@ def build_catalog(image_dir: Path, output_dir: Path, batch_size: int, device_nam
 
     torch.set_num_threads(max(1, min(2, os.cpu_count() or 1)))
     torch.set_num_interop_threads(1)
-    weights = models.ResNet18_Weights.DEFAULT
+    weights = models.MobileNet_V3_Small_Weights.DEFAULT
     transform = weights.transforms()
-    model = models.resnet18(weights=weights)
-    model.fc = torch.nn.Identity()
+    model = models.mobilenet_v3_small(weights=weights)
+    model.classifier = torch.nn.Identity()
     model = model.to(device).eval()
 
     embeddings = []
