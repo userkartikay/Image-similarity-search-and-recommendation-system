@@ -158,7 +158,7 @@ def run_search(contents: bytes):
 
 @app.get("/", include_in_schema=False)
 def home():
-    return FileResponse(WEB_DIR / "index.html")
+    return FileResponse(WEB_DIR / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/health")

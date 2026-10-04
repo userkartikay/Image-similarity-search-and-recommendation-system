@@ -76,6 +76,7 @@ function selectFile(file) {
   if (previewUrl) URL.revokeObjectURL(previewUrl);
   previewUrl = URL.createObjectURL(file);
   queryImage.src = previewUrl;
+  queryImage.hidden = false;
   dropZone.classList.add('has-image');
   fileName.textContent = `${file.name} · ${formatSize(file.size)}`;
   clearButton.hidden = false;

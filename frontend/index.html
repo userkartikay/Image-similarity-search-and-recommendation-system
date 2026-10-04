@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
   <header class="topbar">
@@ -43,7 +43,7 @@
         </div>
 
         <div class="drop-filled">
-          <img id="query-image" alt="Your selected image">
+          <img id="query-image" alt="Your selected image" hidden>
           <div class="scan-line" aria-hidden="true"></div>
         </div>
       </div>
@@ -85,6 +85,6 @@
     <span>StyleSearch</span>
     <span>MobileNetV3 embeddings &middot; cosine similarity</span>
   </footer>
-  <script src="/static/main.js" defer></script>
+  <script src="/static/main.js?v=3" defer></script>
 </body>
 </html>

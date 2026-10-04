@@ -26,6 +26,8 @@ body {
 }
 
 img { display: block; max-width: 100%; }
+[hidden] { display: none !important; }
+img:not([src]), img[src=""] { display: none; }
 button { font: inherit; cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
