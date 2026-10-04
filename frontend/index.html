@@ -3,56 +3,88 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Style discovery powered by deep image embeddings.">
-  <title>StyleSearch | Visual product discovery</title>
+  <meta name="description" content="Upload a photo and find visually similar fashion products in seconds.">
+  <meta name="theme-color" content="#f4efe6">
+  <title>StyleSearch | Shop by photo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="/" aria-label="StyleSearch home"><span class="brand-mark">S</span><span>StyleSearch</span></a>
-    <span class="status"><span class="status-dot"></span>Embedding search online</span>
+    <a class="brand" href="/" aria-label="StyleSearch home">
+      <span class="brand-mark" aria-hidden="true">S</span>
+      <span>StyleSearch</span>
+    </a>
+    <span id="status" class="status" data-state="checking">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span id="status-text">Waking up server</span>
+    </span>
   </header>
 
   <main>
     <section class="hero">
-      <p class="eyebrow">Visual intelligence / 01</p>
-      <h1>Find the look<br><em>you mean.</em></h1>
-      <p class="intro">Upload a product image and discover visually similar pieces from the catalog. ResNet embeddings handle the search; ESRGAN can sharpen the details.</p>
+      <p class="eyebrow">Visual search for fashion</p>
+      <h1>See it. Snap it.<br><em>Find it.</em></h1>
+      <p class="intro">Upload any clothing photo and we&apos;ll find the closest looking pieces across 44,000+ catalog products, ranked by visual similarity.</p>
     </section>
 
     <section class="workspace" aria-label="Image similarity search">
-      <div class="upload-panel">
-        <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="Choose an image">
-          <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden>
-          <div class="upload-icon">+</div>
-          <h2>Drop an image here</h2>
-          <p>or choose a JPG, PNG, or WebP</p>
-          <button id="choose-button" class="button button-dark" type="button">Choose image</button>
+      <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="Choose an image to search with">
+        <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+
+        <div class="drop-empty">
+          <span class="upload-icon" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/></svg>
+          </span>
+          <h2>Drop a photo here</h2>
+          <p>or <span class="link">browse your files</span> &middot; JPG, PNG, WebP</p>
         </div>
-        <div class="controls">
-          <label class="toggle"><input id="query-upscale" type="checkbox"><span class="toggle-track"></span><span>Enhance query before searching</span></label>
-          <button id="search-button" class="button button-accent" type="button" disabled>Search catalog <span aria-hidden="true">↗</span></button>
+
+        <div class="drop-filled">
+          <img id="query-image" alt="Your selected image">
+          <div class="scan-line" aria-hidden="true"></div>
         </div>
-        <p id="file-name" class="file-name" aria-live="polite">No image selected</p>
       </div>
 
-      <div class="preview-panel">
-        <div class="section-label"><span>Query preview</span><span id="query-state">Waiting</span></div>
-        <div id="query-preview" class="query-preview empty"><span>Your image will appear here</span></div>
+      <div class="side">
+        <ol class="steps">
+          <li data-step="1" class="active"><span class="step-num">01</span><div><strong>Upload</strong><p>Any product photo, any size</p></div></li>
+          <li data-step="2"><span class="step-num">02</span><div><strong>Analyze</strong><p>A neural network reads shape, color and texture</p></div></li>
+          <li data-step="3"><span class="step-num">03</span><div><strong>Match</strong><p>We rank the catalog by similarity</p></div></li>
+        </ol>
+
+        <div class="file-row">
+          <p id="file-name" class="file-name" aria-live="polite">No image selected</p>
+          <button id="clear-button" class="button-ghost" type="button" hidden>Change</button>
+        </div>
+
+        <button id="search-button" class="button-primary" type="button" disabled>
+          <span class="button-label">Find similar styles</span>
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+        </button>
+
+        <div id="error-message" class="error-message" role="alert" hidden></div>
       </div>
     </section>
 
-    <section id="results-section" class="results-section" hidden>
-      <div class="results-heading"><div><p class="eyebrow">Catalog results / 02</p><h2>Closest visual matches</h2></div><p id="result-count" class="result-count"></p></div>
+    <section id="results-section" class="results-section" hidden aria-live="polite">
+      <div class="results-heading">
+        <div>
+          <p class="eyebrow">Your matches</p>
+          <h2>Closest <em>visual</em> matches</h2>
+        </div>
+        <p id="result-meta" class="result-meta"></p>
+      </div>
       <div id="results-grid" class="results-grid"></div>
     </section>
-
-    <div id="error-message" class="error-message" role="alert" hidden></div>
   </main>
-  <footer><span>StyleSearch</span><span>Built for visual discovery</span></footer>
+
+  <footer>
+    <span>StyleSearch</span>
+    <span>MobileNetV3 embeddings &middot; cosine similarity</span>
+  </footer>
   <script src="/static/main.js" defer></script>
 </body>
 </html>

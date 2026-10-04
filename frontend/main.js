@@ -1,17 +1,20 @@
 const fileInput = document.querySelector('#file-input');
 const dropZone = document.querySelector('#drop-zone');
-const chooseButton = document.querySelector('#choose-button');
+const queryImage = document.querySelector('#query-image');
 const searchButton = document.querySelector('#search-button');
-const queryUpscale = document.querySelector('#query-upscale');
+const searchLabel = searchButton.querySelector('.button-label');
+const clearButton = document.querySelector('#clear-button');
 const fileName = document.querySelector('#file-name');
-const queryPreview = document.querySelector('#query-preview');
-const queryState = document.querySelector('#query-state');
+const steps = document.querySelectorAll('.steps li');
+const statusEl = document.querySelector('#status');
+const statusText = document.querySelector('#status-text');
 const resultsSection = document.querySelector('#results-section');
 const resultsGrid = document.querySelector('#results-grid');
-const resultCount = document.querySelector('#result-count');
+const resultMeta = document.querySelector('#result-meta');
 const errorMessage = document.querySelector('#error-message');
+const SKELETON_COUNT = 5;
 let selectedFile = null;
-let enhancementEnabled = false;
+let previewUrl = null;
 
 async function parseApiResponse(response) {
   const body = await response.text();
@@ -27,15 +30,28 @@ async function parseApiResponse(response) {
     throw new Error(data?.detail || `Request failed with status ${response.status}.`);
   }
   if (!data) {
-    throw new Error('The server returned an empty response. It may be restarting or out of memory.');
+    throw new Error('The server returned an empty response. It may be restarting, please try again.');
   }
   return data;
 }
 
+function setStatus(state, text) {
+  statusEl.dataset.state = state;
+  statusText.textContent = text;
+}
+
 fetch('/health')
   .then(parseApiResponse)
-  .then((status) => { enhancementEnabled = status.upscaler_ready; })
-  .catch(() => {});
+  .then(() => setStatus('ready', 'Ready to search'))
+  .catch(() => setStatus('error', 'Server unavailable'));
+
+function setStep(active) {
+  steps.forEach((step) => {
+    const n = Number(step.dataset.step);
+    step.classList.toggle('active', n === active);
+    step.classList.toggle('done', n < active);
+  });
+}
 
 function showError(message) {
   errorMessage.textContent = message;
@@ -46,37 +62,44 @@ function clearError() {
   errorMessage.hidden = true;
 }
 
+function formatSize(bytes) {
+  return bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
+}
+
 function selectFile(file) {
   if (!file || !file.type.startsWith('image/')) {
     showError('Please choose a JPG, PNG, or WebP image.');
     return;
   }
-  selectedFile = file;
-  fileName.textContent = `${file.name} / ${(file.size / 1024).toFixed(0)} KB`;
-  searchButton.disabled = false;
-  queryState.textContent = 'Ready';
-  const reader = new FileReader();
-  reader.onload = () => {
-    queryPreview.classList.remove('empty');
-    queryPreview.innerHTML = `<img src="${reader.result}" alt="Selected query image">`;
-  };
-  reader.readAsDataURL(file);
   clearError();
+  selectedFile = file;
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = URL.createObjectURL(file);
+  queryImage.src = previewUrl;
+  dropZone.classList.add('has-image');
+  fileName.textContent = `${file.name} · ${formatSize(file.size)}`;
+  clearButton.hidden = false;
+  searchButton.disabled = false;
+  setStep(2);
 }
 
-chooseButton.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('click', (event) => {
-  if (event.target !== chooseButton) fileInput.click();
-});
+dropZone.addEventListener('click', () => fileInput.click());
 dropZone.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' || event.key === ' ') fileInput.click();
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    fileInput.click();
+  }
 });
-fileInput.addEventListener('change', () => selectFile(fileInput.files[0]));
-['dragenter', 'dragover'].forEach((eventName) => dropZone.addEventListener(eventName, (event) => {
+clearButton.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  selectFile(fileInput.files[0]);
+  fileInput.value = '';
+});
+['dragenter', 'dragover'].forEach((name) => dropZone.addEventListener(name, (event) => {
   event.preventDefault();
   dropZone.classList.add('dragging');
 }));
-['dragleave', 'drop'].forEach((eventName) => dropZone.addEventListener(eventName, (event) => {
+['dragleave', 'drop'].forEach((name) => dropZone.addEventListener(name, (event) => {
   event.preventDefault();
   dropZone.classList.remove('dragging');
 }));
@@ -97,60 +120,71 @@ async function shrinkImage(file, maxSide = 640) {
   }
 }
 
+function showSkeletons() {
+  resultsGrid.innerHTML = Array.from({ length: SKELETON_COUNT }, () =>
+    '<div class="result-card skeleton" aria-hidden="true"><div class="result-media"></div><div class="result-info"><div class="sk-line"></div><div class="sk-line short"></div></div></div>'
+  ).join('');
+  resultMeta.textContent = 'Searching the catalog...';
+  resultsSection.hidden = false;
+}
+
+function setLoading(loading) {
+  searchButton.disabled = loading;
+  searchButton.classList.toggle('loading', loading);
+  searchLabel.textContent = loading ? 'Analyzing your style...' : 'Find similar styles';
+  dropZone.classList.toggle('scanning', loading);
+}
+
 searchButton.addEventListener('click', async () => {
   if (!selectedFile) return;
-  const formData = new FormData();
-  formData.append('image', await shrinkImage(selectedFile), 'query.jpg');
-  searchButton.disabled = true;
-  searchButton.innerHTML = 'Searching...';
-  queryState.textContent = 'Processing';
   clearError();
+  setLoading(true);
+  setStep(2);
+  showSkeletons();
+  resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const started = performance.now();
   try {
-    const response = await fetch(`/api/search?upscale=${queryUpscale.checked}`, { method: 'POST', body: formData });
+    const formData = new FormData();
+    formData.append('image', await shrinkImage(selectedFile), 'query.jpg');
+    const response = await fetch('/api/search', { method: 'POST', body: formData });
     const data = await parseApiResponse(response);
-    queryPreview.innerHTML = `<img src="${data.query_preview}" alt="Processed query image">`;
-    renderResults(data.matches);
-    queryState.textContent = 'Complete';
+    renderResults(data.matches, (performance.now() - started) / 1000);
+    setStep(3);
+    setStatus('ready', 'Ready to search');
   } catch (error) {
+    resultsSection.hidden = true;
     showError(error.message);
-    queryState.textContent = 'Error';
+    setStep(2);
   } finally {
-    searchButton.disabled = false;
-    searchButton.innerHTML = 'Search catalog <span aria-hidden="true">↗</span>';
+    setLoading(false);
   }
 });
 
-function renderResults(matches) {
+function renderResults(matches, seconds) {
   resultsGrid.innerHTML = '';
-  resultCount.textContent = `${matches.length} results / ranked by cosine similarity`;
+  resultMeta.textContent = `${matches.length} matches · found in ${seconds.toFixed(1)}s`;
   matches.forEach((match, position) => {
+    const percent = Math.max(0, Math.min(100, match.score * 100));
     const card = document.createElement('article');
-    card.className = 'result-card';
-    card.style.animationDelay = `${position * 70}ms`;
-    const enhanceControl = enhancementEnabled ? '<button class="enhance-button" type="button">Enhance detail</button>' : '';
-    card.innerHTML = `<img class="result-image" src="${match.image_url}" alt="Catalog match ${position + 1}" loading="lazy"><div class="result-info"><div class="result-number">MATCH / 0${position + 1}</div><div class="score"><span>${(match.score * 100).toFixed(1)}%</span><small>SIMILARITY</small></div>${enhanceControl}</div>`;
-    const enhanceButton = card.querySelector('.enhance-button');
-    if (!enhanceButton) {
-      resultsGrid.appendChild(card);
-      return;
-    }
-    enhanceButton.addEventListener('click', (event) => {
-      const button = event.currentTarget;
-      button.textContent = 'Enhancing...';
-      button.disabled = true;
-      const resultImage = card.querySelector('.result-image');
-      resultImage.addEventListener('load', () => {
-        button.textContent = 'Enhanced';
-      }, { once: true });
-      resultImage.addEventListener('error', () => {
-        button.textContent = 'Enhance failed';
-        button.disabled = false;
-        resultImage.src = match.image_url;
-      }, { once: true });
-      resultImage.src = match.enhance_url || `${match.image_url}?upscale=true`;
-    });
+    card.className = position === 0 ? 'result-card best' : 'result-card';
+    card.style.animationDelay = `${position * 80}ms`;
+
+    const media = document.createElement('div');
+    media.className = 'result-media';
+    const img = document.createElement('img');
+    img.src = match.image_url;
+    img.alt = `Catalog match ${position + 1}`;
+    img.loading = 'lazy';
+    const rank = document.createElement('span');
+    rank.className = 'rank';
+    rank.textContent = position === 0 ? 'Best match' : `#${position + 1}`;
+    media.append(img, rank);
+
+    const info = document.createElement('div');
+    info.className = 'result-info';
+    info.innerHTML = `<div class="score-row"><span class="score">${percent.toFixed(1)}%</span><span class="score-label">similar</span></div><div class="meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent.toFixed(0)}" aria-label="Similarity"><span style="width:${percent}%"></span></div>`;
+
+    card.append(media, info);
     resultsGrid.appendChild(card);
   });
-  resultsSection.hidden = false;
-  resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
