@@ -2,11 +2,14 @@ services:
   - type: web
     name: stylesearch
     runtime: python
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt && TORCH_HOME=.torch-cache python -c "from torchvision import models; models.mobilenet_v3_small(weights=models.MobileNet_V3_Small_Weights.DEFAULT)"
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
-      - key: TORCH_HOME
-        value: .torch-cache
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: MALLOC_ARENA_MAX
+        value: "2"

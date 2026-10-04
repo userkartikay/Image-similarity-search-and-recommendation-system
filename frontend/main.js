@@ -82,10 +82,25 @@ fileInput.addEventListener('change', () => selectFile(fileInput.files[0]));
 }));
 dropZone.addEventListener('drop', (event) => selectFile(event.dataTransfer.files[0]));
 
+async function shrinkImage(file, maxSide = 640) {
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    return await new Promise((resolve) => canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', 0.9));
+  } catch {
+    return file;
+  }
+}
+
 searchButton.addEventListener('click', async () => {
   if (!selectedFile) return;
   const formData = new FormData();
-  formData.append('image', selectedFile);
+  formData.append('image', await shrinkImage(selectedFile), 'query.jpg');
   searchButton.disabled = true;
   searchButton.innerHTML = 'Searching...';
   queryState.textContent = 'Processing';
